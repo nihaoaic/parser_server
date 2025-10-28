@@ -15,17 +15,19 @@ import logging
 from collections import defaultdict
 import datetime
 import oss2
-from config import OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, SPIDER_BUCKET
+from config import OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, SPIDER_BUCKET, PARSED_RESULTS_DIR
 
 class BaseParser(ABC):
     """异步文件解析基类"""
 
-    def __init__(self, log_file_path: str = "spider_log/log.txt"):
+    def __init__(self, log_file_path: str = "spider_log/log.txt", log_identifier: str = None):
         """
         初始化解析器
         :param log_file_path: 日志文件路径，默认为 spider_log/log.txt
+        :param log_identifier: 日志标识符，用于创建子目录
         """
         self.log_file_path = Path(log_file_path)
+        self.log_identifier = log_identifier
         # 创建一个线程锁来保证写入的线程安全
         self.write_lock = threading.Lock()
         
@@ -84,8 +86,13 @@ class BaseParser(ABC):
     def merge_and_write_results(self):
         """合并相同ID的数据并写入文件"""
         # 确保输出目录存在
-        output_dir = Path("parsed_results")
-        output_dir.mkdir(exist_ok=True)
+        output_dir = Path(PARSED_RESULTS_DIR)
+        
+        # 如果有log_identifier，则创建子目录
+        if self.log_identifier:
+            output_dir = output_dir / self.log_identifier
+            
+        output_dir.mkdir(parents=True, exist_ok=True)
         
         # 使用爬虫类名作为文件名的一部分
         parser_name = self.__class__.__name__.replace('Parser', '').lower()

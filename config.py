@@ -8,3 +8,6 @@ OSS_BUCKET_NAME = 'house-spider'
 
 # 爬虫文件 日志 oss 配置
 SPIDER_BUCKET = "house-spider"
+
+# 解析结果输出目录
+PARSED_RESULTS_DIR = "parsed_results"
