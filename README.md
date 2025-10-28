@@ -6,13 +6,19 @@ Parser Server 是一个异步文件解析工具，支持从OSS下载文件、线
 ## 使用方法
 
 ### 1. 下载 OSS 文件
+```bash
 C:/Users/26567/anaconda3/envs/big-data/python.exe f:/parser_server/parser_cli.py oss-download-folder --folder-prefix "zfw/1760441100" --local-dir "./spider_log"
+```
 
 ### 2. 线上解析
+```bash
 & C:/Users/26567/anaconda3/envs/big-data/python.exe parser_cli.py oss-parse zfw --object-key zfw/1760441250/
+```
 
 ### 3. 本地解析线下文件
+```bash
 & C:/Users/26567/anaconda3/envs/big-data/python.exe parser_cli.py parse zfw --log-identifier zfw/1760441130
+```
 
 ## 参数说明
 - --folder-prefix: OSS文件夹前缀路径
