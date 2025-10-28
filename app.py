@@ -1,18 +1,29 @@
 from flask import Flask, request, jsonify
 import oss2
-from config import OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, SPIDER_BUCKET
+from config import OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, SPIDER_BUCKET, PARSED_RESULTS_DIR
 import logging
 import subprocess
+import config
+import os
+
+# 从配置模块导入 SCRIPT_PATH
+SCRIPT_PATH = config.SCRIPT_PATH
+PYTHON_PATH = config.PYTHON_PATH
+
+
+# 检查文件是否存在
+parse_path = config.PARSED_RESULTS_DIR
+if os.path.exists(parse_path):
+    print(f"目录 {parse_path} 存在")
+else:
+    print(f"目录 {parse_path} 不存在")
+    os.makedirs(parse_path)
 
 app = Flask(__name__)
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
-
-PYTHON_PATH = r"C:/Users/26567/anaconda3/envs/big-data/python.exe"
-SCRIPT_PATH = r"f:/parser_server/parser_cli.py"  # 根据实际路径修改
-
 
 # 初始化OSS客户端的函数
 def get_oss_client(bucket_name):

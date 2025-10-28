@@ -11,3 +11,7 @@ SPIDER_BUCKET = "house-spider"
 
 # 解析结果输出目录
 PARSED_RESULTS_DIR = "parsed_results"
+
+
+PYTHON_PATH = r"C:/Users/26567/anaconda3/envs/big-data/python.exe"
+SCRIPT_PATH = r"f:/parser_server/parser_cli.py"  # 根据实际路径修改

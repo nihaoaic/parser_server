@@ -213,29 +213,23 @@ def main():
             print(f"错误: 在 {script_path} 中未找到BaseParser的子类")
             sys.exit(1)
         
-        # 确定日志标识符
-        log_identifier = args.log_identifier
-        if not log_identifier:
+        # 确定日志文件路径
+        if args.log_identifier:
+            log_file_path = f"spider_log/{args.log_identifier}.log"
+        else:
             # 从object-key中提取日志标识符
             object_key = args.object_key.rstrip('/')
             if '/' in object_key:
                 parts = object_key.split('/')
                 if len(parts) >= 2:
-                    log_identifier = f"{parts[0]}/{parts[1]}"
+                    log_file_path = f"spider_log/{parts[0]}/{parts[1]}.log"
                 else:
-                    log_identifier = object_key
+                    log_file_path = f"spider_log/{object_key}.log"
             else:
-                log_identifier = object_key
+                log_file_path = f"spider_log/{object_key}.log"
         
-        # 确定日志文件路径
-        if log_identifier:
-            log_file_path = f"spider_log/{log_identifier}.log"
-        else:
-            # 默认使用爬虫名称作为日志文件名
-            log_file_path = f"spider_log/{spider_name}.log"
-        
-        # 实例化并运行解析器，传递log_identifier参数
-        parser_instance = parser_class(log_file_path, log_identifier)
+        # 实例化并运行解析器
+        parser_instance = parser_class(log_file_path)
         
         # 判断是解析单个文件还是整个目录
         if args.object_key.endswith('/'):
@@ -270,22 +264,15 @@ def main():
             print(f"错误: 在 {script_path} 中未找到BaseParser的子类")
             sys.exit(1)
         
-        # 确定日志标识符
-        log_identifier = args.log_identifier
-        if not log_identifier:
-            # 从命令参数中推断日志标识符
-            # 例如：zfw/1760441130 -> zfw/1760441130
-            log_identifier = spider_name
-        
         # 确定日志文件路径
-        if log_identifier:
-            log_file_path = f"spider_log/{log_identifier}.log"
+        if args.log_identifier:
+            log_file_path = f"spider_log/{args.log_identifier}.log"
         else:
             # 默认使用爬虫名称作为日志文件名
             log_file_path = f"spider_log/{spider_name}.log"
         
-        # 实例化并运行解析器，传递log_identifier参数
-        parser_instance = parser_class(log_file_path, log_identifier)
+        # 实例化并运行解析器
+        parser_instance = parser_class(log_file_path)
         
         # 检查解析器是否有run方法，如果没有则使用默认的异步处理方法
         if hasattr(parser_instance, 'run'):
