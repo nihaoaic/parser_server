@@ -5,11 +5,11 @@ import logging
 import subprocess
 import config
 import os
+import pymysql
 
 # 从配置模块导入 SCRIPT_PATH
 SCRIPT_PATH = config.SCRIPT_PATH
 PYTHON_PATH = config.PYTHON_PATH
-
 
 # 检查文件是否存在
 parse_path = config.PARSED_RESULTS_DIR
@@ -25,6 +25,16 @@ app = Flask(__name__)
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
+# 数据库配置
+DB_CONFIG = {
+    'host': config.DB_HOST,
+    'port': config.DB_PORT,
+    'user': config.DB_USER,
+    'password': config.DB_PASSWORD,
+    'database': config.DB_NAME,
+    'charset': 'utf8mb4'
+}
+
 # 初始化OSS客户端的函数
 def get_oss_client(bucket_name):
     try:
@@ -35,6 +45,10 @@ def get_oss_client(bucket_name):
     except Exception as e:
         logger.error(f"初始化OSS客户端失败: {str(e)}")
         return None
+
+# 数据库连接函数
+def get_db_connection():
+    return pymysql.connect(**DB_CONFIG)
 
 @app.route('/')
 def home():
@@ -58,7 +72,111 @@ def post_data():
     }
     return jsonify(response), 201
 
-# 新增：查询OSS目录信息的API
+# 新增：查询MySQL zfw表的API（支持分页）
+@app.route('/api/parser/list', methods=['GET'])
+def list_zfw_records():
+    """
+    查询指定表中的记录，支持分页
+    参数:
+    - id: 表名（必填）
+    - page: 页码，默认为1
+    - per_page: 每页记录数，默认为10，最大100
+    - status: 状态过滤条件（可选）
+    """
+    try:
+        # 获取表名参数
+        table_name = request.args.get('id')
+        if not table_name:
+            return jsonify({"error": "Missing required parameter: id (table name)"}), 400
+        
+        # 验证表名是否合法（防止SQL注入）
+        if not table_name.replace('_', '').replace('-', '').isalnum():
+            return jsonify({"error": "Invalid table name"}), 400
+        
+        # 获取分页参数
+        page = request.args.get('page', 1, type=int)
+        per_page = request.args.get('per_page', 10, type=int)
+        status = request.args.get('status', None, type=str)
+        
+        # 限制每页最大记录数
+        per_page = min(per_page, 100)
+        
+        # 计算OFFSET
+        offset = (page - 1) * per_page
+        
+        # 构建SQL查询
+        connection = get_db_connection()
+        with connection.cursor() as cursor:
+            # 构建基础查询语句
+            base_query = f"SELECT id, path, status FROM {table_name}"
+            count_query = f"SELECT COUNT(*) FROM {table_name}"
+            
+            # 添加过滤条件
+            if status:
+                where_clause = " WHERE status = %s"
+                params = [status]
+            else:
+                where_clause = ""
+                params = []
+            
+            # 完整查询语句
+            full_query = base_query + where_clause + " LIMIT %s OFFSET %s"
+            full_count_query = count_query + where_clause
+            
+            # 执行计数查询
+            cursor.execute(full_count_query, params)
+            total_records = cursor.fetchone()[0]
+            
+            # 执行数据查询
+            query_params = params + [per_page, offset]
+            cursor.execute(full_query, query_params)
+            records = cursor.fetchall()
+            
+            # 格式化结果
+            result_records = []
+            for record in records:
+                result_records.append({
+                    'id': record[0],
+                    'path': record[1],
+                    'status': record[2]
+                })
+            
+            # 计算分页信息
+            total_pages = (total_records + per_page - 1) // per_page
+            
+            # 构建响应
+            response = {
+                'records': result_records,
+                'pagination': {
+                    'page': page,
+                    'per_page': per_page,
+                    'total_records': total_records,
+                    'total_pages': total_pages
+                },
+                'table': table_name
+            }
+            
+            if status:
+                response['filter'] = {'status': status}
+            
+            return jsonify(response), 200
+            
+    except pymysql.err.ProgrammingError as e:
+        if "doesn't exist" in str(e):
+            return jsonify({"error": f"Table '{table_name}' does not exist"}), 404
+        else:
+            logger.error(f"查询{table_name}表时发生错误: {str(e)}")
+            return jsonify({"error": f"Database error: {str(e)}"}), 500
+    except Exception as e:
+        logger.error(f"查询{table_name}表时发生错误: {str(e)}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+    finally:
+        try:
+            connection.close()
+        except:
+            pass
+
+# 新增���查询OSS目录信息的API
 @app.route('/api/oss/list', methods=['GET'])
 def list_oss_subdirs():
     """
@@ -104,7 +222,6 @@ def list_oss_subdirs():
     except Exception as e:
         logger.error(f"查询OSS子目录时发生错误: {str(e)}")
         return jsonify({"error": f"Internal server error: {str(e)}"}), 500
-
 
 @app.route("/api/oss_download_folder", methods=["GET"])
 def oss_download_folder():

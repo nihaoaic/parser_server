@@ -15,3 +15,12 @@ PARSED_RESULTS_DIR = "parsed_results"
 
 PYTHON_PATH = r"C:/Users/26567/anaconda3/envs/big-data/python.exe"
 SCRIPT_PATH = r"f:/parser_server/parser_cli.py"  # 根据实际路径修改
+
+
+
+# 解析器映射配置
+DB_HOST = '68.64.178.162'
+DB_PORT = 3306
+DB_USER = 'root'
+DB_PASSWORD = 'Czq1622801070'
+DB_NAME = 'parser'
