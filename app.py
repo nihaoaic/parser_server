@@ -289,7 +289,7 @@ def oss_parse():
     """
     调用 parser_cli.py 进行线上解析
     示例：
-    GET /api/oss_parse?project=zfw&object_key=zfw/1760441250/
+    GET /api/oss_parse?project=zfw&object_key=zfw/1760441250/&id=1760441250
     实际执行：
     C:/Users/26567/anaconda3/envs/big-data/python.exe parser_cli.py oss-parse zfw --object-key zfw/1760441250/
     """
@@ -297,6 +297,7 @@ def oss_parse():
         # 获取请求参数
         project = request.args.get("project")
         object_key = request.args.get("object_key")
+        record_id = request.args.get("id")  # 获取前端传递的ID参数
 
         if not project or not object_key:
             return jsonify({"error": "Missing required parameters: project or object_key"}), 400
@@ -333,6 +334,23 @@ def oss_parse():
         }
 
         if exit_code == 0:
+            # 解析成功，更新数据库中的status为1
+            if record_id:
+                try:
+                    # 更新数据库
+                    connection = get_db_connection()
+                    with connection.cursor() as cursor:
+                        # 构建更新语句，将对应ID的记录status更新为1
+                        update_query = f"UPDATE {project} SET status = 1 WHERE id = %s"
+                        cursor.execute(update_query, (record_id,))
+                        connection.commit()
+                    connection.close()
+                    logger.info(f"成功更新记录 {record_id} 的状态为1")
+                except Exception as e:
+                    logger.error(f"更新数据库状态时出错: {str(e)}")
+            else:
+                logger.warning("未提供记录ID，无法更新数据库状态")
+            
             return jsonify({"status": "success", **result}), 200
         else:
             return jsonify({"status": "error", **result}), 500
