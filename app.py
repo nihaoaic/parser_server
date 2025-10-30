@@ -333,29 +333,56 @@ def oss_parse():
             "stderr": stderr.strip(),
         }
 
+        # 只有在解析成功时才尝试更新数据库
         if exit_code == 0:
-            # 解析成功，更新数据库中的status为1
+            # 解析成功，尝试更新数据库中的status为'1'
             if record_id:
                 try:
                     # 更新数据库
                     connection = get_db_connection()
                     with connection.cursor() as cursor:
-                        # 构建更新语句，将对应ID的记录status更新为1
-                        update_query = f"UPDATE {project} SET status = '1' WHERE id = %s"
-                        cursor.execute(update_query, (record_id,))
+                        # 构建更新语句，将对应ID的记录status更新为'1'
+                        update_query = f"UPDATE {project} SET status = %s WHERE id = %s"
+                        cursor.execute(update_query, ('1', record_id))  # 使用参数化查询
+                        affected_rows = cursor.rowcount  # 获取受影响的行数
                         connection.commit()
                     connection.close()
-                    logger.info(f"成功更新记录 {record_id} 的状态为1")
+                    
+                    # 检查是否有行被更新
+                    if affected_rows > 0:
+                        logger.info(f"成功更新记录 {record_id} 的状态为'1'，受影响行数: {affected_rows}")
+                        # 只有数据库更新成功才返回成功
+                        return jsonify({"status": "success", **result}), 200
+                    else:
+                        logger.warning(f"没有找到ID为 {record_id} 的记录进行更新")
+                        # 数据库更新失败，返回错误
+                        return jsonify({
+                            "status": "error",
+                            "message": f"未找到ID为 {record_id} 的记录进行更新",
+                            **result
+                        }), 500
                 except Exception as e:
                     logger.error(f"更新数据库状态时出错: {str(e)}")
+                    # 数据库更新失败，返回错误
+                    return jsonify({
+                        "status": "error",
+                        "message": f"数据库更新失败: {str(e)}",
+                        **result
+                    }), 500
             else:
                 logger.warning("未提供记录ID，无法更新数据库状态")
-            
-            return jsonify({"status": "success", **result}), 200
+                # 没有ID无法更新数据库，返回错误
+                return jsonify({
+                    "status": "error",
+                    "message": "未提供记录ID，无法更新数据库状态",
+                    **result
+                }), 400
         else:
+            # 解析失败，返回错误
             return jsonify({"status": "error", **result}), 500
 
     except Exception as e:
+        logger.error(f"执行解析时出错: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
 if __name__ == '__main__':
