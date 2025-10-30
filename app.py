@@ -281,5 +281,62 @@ def oss_download_folder():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+
+@app.route("/api/oss_parse", methods=["GET"])
+def oss_parse():
+    """
+    调用 parser_cli.py 进行线上解析
+    示例：
+    GET /api/oss_parse?project=zfw&object_key=zfw/1760441250/
+    实际执行：
+    C:/Users/26567/anaconda3/envs/big-data/python.exe parser_cli.py oss-parse zfw --object-key zfw/1760441250/
+    """
+    try:
+        # 获取请求参数
+        project = request.args.get("project")
+        object_key = request.args.get("object_key")
+
+        if not project or not object_key:
+            return jsonify({"error": "Missing required parameters: project or object_key"}), 400
+
+        # 拼接命令
+        cmd = [
+            PYTHON_PATH,
+            SCRIPT_PATH,
+            "oss-parse",
+            project,
+            "--object-key", object_key
+        ]
+
+        print(f"[命令执行] {' '.join(cmd)}")
+
+        # 调用 subprocess 执行命令
+        process = subprocess.Popen(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+            shell=False
+        )
+
+        stdout, stderr = process.communicate()
+        exit_code = process.returncode
+
+        # 构造返回结果
+        result = {
+            "cmd": " ".join(cmd),
+            "exit_code": exit_code,
+            "stdout": stdout.strip(),
+            "stderr": stderr.strip(),
+        }
+
+        if exit_code == 0:
+            return jsonify({"status": "success", **result}), 200
+        else:
+            return jsonify({"status": "error", **result}), 500
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
