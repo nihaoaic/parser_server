@@ -343,7 +343,7 @@ def oss_parse():
                     with connection.cursor() as cursor:
                         # 构建更新语句，将对应ID的记录status更新为'1'
                         update_query = f"UPDATE {project} SET status = %s WHERE id = %s"
-                        cursor.execute(update_query, ('1', record_id))  # 使用参数化查询
+                        cursor.execute(update_query, ('1', int(record_id)))  # 使用参数化查询
                         affected_rows = cursor.rowcount  # 获取受影响的行数
                         connection.commit()
                     connection.close()
