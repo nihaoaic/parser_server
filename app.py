@@ -341,7 +341,7 @@ def oss_parse():
                     connection = get_db_connection()
                     with connection.cursor() as cursor:
                         # 构建更新语句，将对应ID的记录status更新为1
-                        update_query = f"UPDATE {project} SET status = 1 WHERE id = %s"
+                        update_query = f"UPDATE {project} SET status = '1' WHERE id = %s"
                         cursor.execute(update_query, (record_id,))
                         connection.commit()
                     connection.close()
