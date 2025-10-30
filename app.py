@@ -1,4 +1,5 @@
 from flask import Flask, request, jsonify
+from flask_cors import CORS  # 添加这行
 import oss2
 from config import OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, SPIDER_BUCKET, PARSED_RESULTS_DIR
 import logging
@@ -20,6 +21,7 @@ else:
     os.makedirs(parse_path)
 
 app = Flask(__name__)
+CORS(app)  # 添加这行来启用CORS
 
 # 配置日志
 logging.basicConfig(level=logging.INFO)
