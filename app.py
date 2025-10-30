@@ -338,12 +338,18 @@ def oss_parse():
             # 解析成功，尝试更新数据库中的status为'1'
             if record_id:
                 try:
+                    # 转换ID为整数
+                    record_id_int = int(record_id)
+                    
                     # 更新数据库
                     connection = get_db_connection()
                     with connection.cursor() as cursor:
                         # 构建更新语句，将对应ID的记录status更新为'1'
                         update_query = f"UPDATE {project} SET status = %s WHERE id = %s"
-                        cursor.execute(update_query, ('1', int(record_id)))  # 使用参数化查询
+                        # 记录完整的SQL语句用于错误信息
+                        full_query = update_query % ('1', record_id_int) if '%' not in update_query else f"UPDATE {project} SET status = '1' WHERE id = {record_id_int}"
+                        
+                        cursor.execute(update_query, ('1', record_id_int))  # 使用参数化查询
                         affected_rows = cursor.rowcount  # 获取受影响的行数
                         connection.commit()
                     connection.close()
@@ -354,27 +360,56 @@ def oss_parse():
                         # 只有数据库更新成功才返回成功
                         return jsonify({"status": "success", **result}), 200
                     else:
-                        logger.warning(f"没有找到ID为 {record_id} 的记录进行更新")
-                        # 数据库更新失败，返回错误
-                        return jsonify({
-                            "status": "error",
-                            "message": f"未找到ID为 {record_id} 的记录进行更新",
-                            **result
-                        }), 500
+                        # 查询记录是否存在
+                        connection = get_db_connection()
+                        record_exists = False
+                        try:
+                            with connection.cursor() as cursor:
+                                check_query = f"SELECT id FROM {project} WHERE id = %s"
+                                cursor.execute(check_query, (record_id_int,))
+                                record_exists = cursor.fetchone() is not None
+                        finally:
+                            connection.close()
+                        
+                        if record_exists:
+                            logger.warning(f"记录 {record_id} 存在但状态未更新（可能已经是'1'）")
+                            # 即使状态未改变，也认为操作成功
+                            return jsonify({"status": "success", **result}), 200
+                        else:
+                            logger.warning(f"没有找到ID为 {record_id} 的记录进行更新")
+                            # 提供更详细的错误信息
+                            error_msg = f"未找到ID为 {record_id} 的记录进行更新。表名: {project}，完整查询语句: SELECT id FROM {project} WHERE id = {record_id_int}"
+                            # 数据库更新失败，返回错误
+                            return jsonify({
+                                "status": "error",
+                                "message": error_msg,
+                                **result
+                            }), 500
+                except ValueError as ve:
+                    logger.error(f"ID转换错误: {str(ve)}")
+                    error_msg = f"ID参数无效，无法转换为整数: {record_id}。错误详情: {str(ve)}"
+                    return jsonify({
+                        "status": "error",
+                        "message": error_msg,
+                        **result
+                    }), 400
                 except Exception as e:
                     logger.error(f"更新数据库状态时出错: {str(e)}")
+                    # 提供更详细的错误信息
+                    error_msg = f"数据库更新失败: {str(e)}。表名: {project}，ID: {record_id}，完整查询语句: UPDATE {project} SET status = '1' WHERE id = {record_id}"
                     # 数据库更新失败，返回错误
                     return jsonify({
                         "status": "error",
-                        "message": f"数据库更新失败: {str(e)}",
+                        "message": error_msg,
                         **result
                     }), 500
             else:
                 logger.warning("未提供记录ID，无法更新数据库状态")
                 # 没有ID无法更新数据库，返回错误
+                error_msg = "未提供记录ID，无法更新数据库状态。需要提供'id'参数"
                 return jsonify({
                     "status": "error",
-                    "message": "未提供记录ID，无法更新数据库状态",
+                    "message": error_msg,
                     **result
                 }), 400
         else:
