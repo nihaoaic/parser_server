@@ -12,10 +12,12 @@ SPIDER_BUCKET = "house-spider"
 # 解析结果输出目录
 PARSED_RESULTS_DIR = "parsed_results"
 
+# 服务器配置
+SERVER_HOST = 'http://68.64.178.162'
+SERVER_PORT = 5005
 
 PYTHON_PATH = r"C:/Users/26567/anaconda3/envs/big-data/python.exe"
 SCRIPT_PATH = r"f:/parser_server/parser_cli.py"  # 根据实际路径修改
-
 
 
 # 解析器映射配置
