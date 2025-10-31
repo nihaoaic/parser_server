@@ -120,6 +120,8 @@ class BaseParser(ABC):
                     
                     # 确保数据被写入磁盘
                     f.flush()
+                # 暴露给subprocess的输出
+                print(output_file)
             except Exception as e:
                 print(f"写入数据时出错: {e}")
                 # 记录错误数据以便调试
