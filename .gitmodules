@@ -1,0 +1,3 @@
+[submodule "parser_front"]
+	path = parser_front
+	url = https://github.com/nihaoaic/parser_front.git
