@@ -1,7 +1,7 @@
 from flask import Flask, request, jsonify
 from flask_cors import CORS  # 添加这行
 import oss2
-from config import OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, SPIDER_BUCKET, PARSED_RESULTS_DIR
+from config import OSS_ACCESS_KEY_ID, OSS_ACCESS_KEY_SECRET, OSS_ENDPOINT, SPIDER_BUCKET, SERVER_PORT,SERVER_HOST
 import logging
 import subprocess
 import config
@@ -477,8 +477,8 @@ def get_parser_file_path():
                 if not parser_path:
                     return jsonify({"error": "No parser result file found for this record"}), 404
                 
-                # 构建文件访问URL
-                file_url = f"/parser_results/{parser_path}"
+                # 构建完整的文件访问URL
+                file_url = f"{SERVER_HOST}:{SERVER_PORT}/parser_results/{parser_path}"
                 
                 # 返回文件访问URL
                 return jsonify({
