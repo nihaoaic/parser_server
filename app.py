@@ -335,7 +335,23 @@ def oss_parse():
 
         # 只有在解析成功时才尝试更新数据库
         if exit_code == 0:
-            # 解析成功，尝试更新数据库中的status为'1'
+            # 从stdout中提取文件路径
+            parser_path = None
+            for line in stdout.split('\n'):
+                # 查找以 / 开头并以 .json 结尾的行，这应该是文件路径
+                if line.strip().startswith("/") and line.strip().endswith(".json"):
+                    parser_path = line.strip()
+                    break
+            
+            # 如果没有找到文件路径，记录警告
+            if not parser_path:
+                logger.warning("未从stdout中找到解析结果文件路径")
+            else:
+                # 从完整路径中提取文件名
+                filename = parser_path.split('/')[-1]
+                logger.info(f"提取到解析结果文件名: {filename}")
+            
+            # 解析成功，尝试更新数据库中的status为'1'和parser_path
             if record_id:
                 try:
                     # 转换ID为整数
@@ -344,12 +360,14 @@ def oss_parse():
                     # 更新数据库
                     connection = get_db_connection()
                     with connection.cursor() as cursor:
-                        # 构建更新语句，将对应ID的记录status更新为'1'
-                        update_query = f"UPDATE {project} SET status = %s WHERE id = %s"
-                        # 记录完整的SQL语句用于错误信息
-                        full_query = update_query % ('1', record_id_int) if '%' not in update_query else f"UPDATE {project} SET status = '1' WHERE id = {record_id_int}"
+                        # 构建更新语句，将对应ID的记录status更新为'1'，并设置parser_path
+                        if parser_path:
+                            update_query = f"UPDATE {project} SET status = %s, parser_path = %s WHERE id = %s"
+                            cursor.execute(update_query, ('1', filename, record_id_int))
+                        else:
+                            update_query = f"UPDATE {project} SET status = %s WHERE id = %s"
+                            cursor.execute(update_query, ('1', record_id_int))
                         
-                        cursor.execute(update_query, ('1', record_id_int))  # 使用参数化查询
                         affected_rows = cursor.rowcount  # 获取受影响的行数
                         connection.commit()
                     connection.close()
