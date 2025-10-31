@@ -438,5 +438,65 @@ def oss_parse():
         logger.error(f"执行解析时出错: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+@app.route("/api/parser/get_file_path", methods=["GET"])
+def get_parser_file_path():
+    """
+    获取解析结果文件的访问路径
+    参数:
+    - project: 项目名称（表名）
+    - id: 记录ID
+    """
+    try:
+        # 获取请求参数
+        project = request.args.get("project")
+        record_id = request.args.get("id")
+        
+        if not project or not record_id:
+            return jsonify({"error": "Missing required parameters: project or id"}), 400
+        
+        # 查询数据库获取parser_path
+        connection = get_db_connection()
+        try:
+            with connection.cursor() as cursor:
+                # 查询记录的parser_path和status
+                query = f"SELECT parser_path, status FROM {project} WHERE id = %s"
+                cursor.execute(query, (int(record_id),))
+                result = cursor.fetchone()
+                
+                if not result:
+                    return jsonify({"error": f"Record with id {record_id} not found in table {project}"}), 404
+                
+                parser_path = result[0]
+                status = result[1]
+                
+                # 检查记录状态
+                if status != '1':
+                    return jsonify({"error": "Record has not been parsed successfully yet"}), 400
+                
+                # 检查parser_path是否存在
+                if not parser_path:
+                    return jsonify({"error": "No parser result file found for this record"}), 404
+                
+                # 构建文件访问URL
+                file_url = f"/parser_results/{parser_path}"
+                
+                # 返回文件访问URL
+                return jsonify({
+                    "status": "success",
+                    "file_url": file_url,
+                    "filename": parser_path
+                }), 200
+                    
+        finally:
+            connection.close()
+            
+    except ValueError as ve:
+        logger.error(f"ID转换错误: {str(ve)}")
+        return jsonify({"error": f"Invalid ID parameter: {str(ve)}"}), 400
+    except Exception as e:
+        logger.error(f"获取文件路径时出错: {str(e)}")
+        return jsonify({"error": f"Internal server error: {str(e)}"}), 500
+
+
 if __name__ == '__main__':
     app.run(debug=True, host='0.0.0.0', port=5000)
