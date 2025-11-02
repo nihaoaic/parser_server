@@ -438,6 +438,225 @@ def oss_parse():
         logger.error(f"执行解析时出错: {str(e)}")
         return jsonify({"error": str(e)}), 500
 
+# 新增：批量解析API
+@app.route("/api/oss_batch_parse", methods=["POST"])
+def oss_batch_parse():
+    """
+    批量解析OSS文件
+    请求体应包含：
+    {
+        "project": "项目名称",
+        "items": [
+            {"id": "记录ID", "object_key": "OSS对象键"},
+            {"id": "记录ID", "object_key": "OSS对象键"},
+            ...
+        ]
+    }
+    """
+    try:
+        # 获取请求体中的JSON数据
+        request_data = request.get_json()
+        if not request_data:
+            return jsonify({"error": "Missing request body"}), 400
+
+        project = request_data.get("project")
+        items = request_data.get("items", [])
+        
+        if not project:
+            return jsonify({"error": "Missing required parameter: project"}), 400
+            
+        if not items or not isinstance(items, list):
+            return jsonify({"error": "Missing or invalid items parameter. Expected a list of objects with 'id' and 'object_key'."}), 400
+        
+        # 验证每个项目都有必需的字段
+        for i, item in enumerate(items):
+            if not isinstance(item, dict):
+                return jsonify({"error": f"Item at index {i} is not a valid object"}), 400
+            if "id" not in item:
+                return jsonify({"error": f"Missing 'id' in item at index {i}"}), 400
+            if "object_key" not in item:
+                return jsonify({"error": f"Missing 'object_key' in item at index {i}"}), 400
+
+        # 使用线程池处理批量解析
+        import concurrent.futures
+        import threading
+        
+        # 存储结果的线程安全字典
+        results = {}
+        results_lock = threading.Lock()
+        
+        def parse_single_item(item):
+            """单个解析任务"""
+            item_id = item["id"]
+            object_key = item["object_key"]
+            
+            try:
+                # 拼接命令
+                cmd = [
+                    PYTHON_PATH,
+                    SCRIPT_PATH,
+                    "oss-parse",
+                    project,
+                    "--object-key", object_key
+                ]
+
+                print(f"[命令执行] {' '.join(cmd)}")
+
+                # 调用 subprocess 执行命令
+                process = subprocess.Popen(
+                    cmd,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    text=True,
+                    shell=False
+                )
+
+                stdout, stderr = process.communicate()
+                exit_code = process.returncode
+
+                # 构造返回结果
+                result = {
+                    "cmd": " ".join(cmd),
+                    "exit_code": exit_code,
+                    "stdout": stdout.strip(),
+                    "stderr": stderr.strip(),
+                }
+
+                # 只有在解析成功时才尝试更新数据库
+                if exit_code == 0:
+                    # 从stdout中提取文件路径
+                    parser_path = None
+                    for line in stdout.split('\n'):
+                        # 查找以 / 开头并以 .json 结尾的行，这应该是文件路径
+                        if line.strip().startswith("/") and line.strip().endswith(".json"):
+                            parser_path = line.strip()
+                            break
+                    
+                    # 如果没有找到文件路径，记录警告
+                    if not parser_path:
+                        logger.warning(f"未从stdout中找到解析结果文件路径，ID: {item_id}")
+                    else:
+                        # 从完整路径中提取文件名
+                        filename = parser_path.split('/')[-1]
+                        logger.info(f"提取到解析结果文件名: {filename}，ID: {item_id}")
+                    
+                    # 解析成功，尝试更新数据库中的status为'1'和parser_path
+                    try:
+                        # 转换ID为整数
+                        record_id_int = int(item_id)
+                        
+                        # 更新数据库
+                        connection = get_db_connection()
+                        try:
+                            with connection.cursor() as cursor:
+                                # 构建更新语句，将对应ID的记录status更新为'1'，并设置parser_path
+                                if parser_path:
+                                    update_query = f"UPDATE {project} SET status = %s, parser_path = %s WHERE id = %s"
+                                    cursor.execute(update_query, ('1', filename, record_id_int))
+                                else:
+                                    update_query = f"UPDATE {project} SET status = %s WHERE id = %s"
+                                    cursor.execute(update_query, ('1', record_id_int))
+                                
+                                affected_rows = cursor.rowcount  # 获取受影响的行数
+                                connection.commit()
+                            
+                            # 检查是否有行被更新
+                            if affected_rows > 0:
+                                logger.info(f"成功更新记录 {item_id} 的状态为'1'，受影响行数: {affected_rows}")
+                                with results_lock:
+                                    results[item_id] = {"status": "success", "result": result}
+                            else:
+                                # 查询记录是否存在
+                                record_exists = False
+                                try:
+                                    with connection.cursor() as cursor:
+                                        check_query = f"SELECT id FROM {project} WHERE id = %s"
+                                        cursor.execute(check_query, (record_id_int,))
+                                        record_exists = cursor.fetchone() is not None
+                                except Exception as e:
+                                    logger.error(f"检查记录存在性时出错，ID: {item_id}，错误: {str(e)}")
+                                
+                                if record_exists:
+                                    logger.warning(f"记录 {item_id} 存在但状态未更新（可能已经是'1'）")
+                                    with results_lock:
+                                        results[item_id] = {"status": "success", "result": result, "message": "Record already parsed"}
+                                else:
+                                    logger.warning(f"没有找到ID为 {item_id} 的记录进行更新")
+                                    with results_lock:
+                                        results[item_id] = {
+                                            "status": "error",
+                                            "result": result,
+                                            "message": f"Record with id {item_id} not found"
+                                        }
+                        finally:
+                            connection.close()
+                    except ValueError as ve:
+                        logger.error(f"ID转换错误: {str(ve)}，ID: {item_id}")
+                        with results_lock:
+                            results[item_id] = {
+                                "status": "error",
+                                "result": result,
+                                "message": f"Invalid ID parameter: {item_id}"
+                            }
+                    except Exception as e:
+                        logger.error(f"更新数据库状态时出错: {str(e)}，ID: {item_id}")
+                        with results_lock:
+                            results[item_id] = {
+                                "status": "error",
+                                "result": result,
+                                "message": f"Database update failed: {str(e)}"
+                            }
+                else:
+                    # 解析失败
+                    with results_lock:
+                        results[item_id] = {"status": "error", "result": result}
+                        
+            except Exception as e:
+                logger.error(f"处理项目时出错，ID: {item_id}，错误: {str(e)}")
+                with results_lock:
+                    results[item_id] = {
+                        "status": "error",
+                        "message": f"Processing failed: {str(e)}"
+                    }
+
+        # 使用线程池执行批量解析
+        max_workers = min(len(items), 10)  # 限制最大并发数为10
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+            # 提交所有任务
+            future_to_item = {executor.submit(parse_single_item, item): item for item in items}
+            
+            # 等待所有任务完成
+            for future in concurrent.futures.as_completed(future_to_item):
+                item = future_to_item[future]
+                try:
+                    future.result()
+                except Exception as e:
+                    item_id = item["id"]
+                    logger.error(f"线程执行出错，ID: {item_id}，错误: {str(e)}")
+                    with results_lock:
+                        results[item_id] = {
+                            "status": "error",
+                            "message": f"Thread execution failed: {str(e)}"
+                        }
+
+        # 统计结果
+        success_count = sum(1 for r in results.values() if r["status"] == "success")
+        error_count = len(results) - success_count
+        
+        return jsonify({
+            "status": "completed",
+            "summary": {
+                "total": len(items),
+                "success": success_count,
+                "error": error_count
+            },
+            "results": results
+        }), 200
+
+    except Exception as e:
+        logger.error(f"执行批量解析时出错: {str(e)}")
+        return jsonify({"error": str(e)}), 500
+
 @app.route("/api/parser/get_file_path", methods=["GET"])
 def get_parser_file_path():
     """
