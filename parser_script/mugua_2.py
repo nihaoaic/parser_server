@@ -125,7 +125,7 @@ class Mugua(BaseParser):
             equ = data.get('houseEquipped',{}).get("roomEquippedList")
             if equ:
                 facilities = equ[0].get('equippedTypesStr')
-                facilities = facilities.split(',')
+                facilities = facilities.split('，')
                 if facilities:
                     facilities = [_.strip() for _ in facilities]
                     ods_mugua_house['facilities'] = facilities
