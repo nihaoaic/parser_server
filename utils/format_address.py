@@ -229,14 +229,18 @@ def format_address(address: str,location:str):
                 detail = address.replace(town,'')
                 if detail:
                     result['detail'] = detail
-    
-    if location and result:
-        result['location'] = location
+
+    if result:
         result['value'] = origin_address
         result['province'] = '广东省'
         result['city'] = '广州市'
+    
+    if location:
+        result['location'] = location
+        
+    if result:
         return result
             
 
-# if __name__ == "__main__":
-#     print(format_address("广东省广州市天河区车陂北正大街35号","天河区车陂云公馆北(车陂北正大街东三巷东)"))
+if __name__ == "__main__":
+    print(format_address("潭村[地铁站]3栋4单元402",''))

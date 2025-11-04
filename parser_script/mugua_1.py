@@ -35,6 +35,10 @@ class Mugua(BaseParser):
 
                 # 提取sourceid
                 sourceid = house.get('houseId')
+                # 提取 address
+                address = house.get('certificateName')
+                if address:
+                    ods_mugua_house['address'] = address
                 if sourceid:
                     ods_mugua_house['sourceId'] = str(sourceid)
                     if ods_mugua_house.get('tableName'):
