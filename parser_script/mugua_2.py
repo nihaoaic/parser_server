@@ -147,6 +147,23 @@ class Mugua(BaseParser):
             person = data.get('contactPerson')
             if person:
                 ods_mugua_contact['personName'] = person.strip()
+
+
+            # 提取 照片
+            houseAttachments = data.get('houseAttachments')
+            if houseAttachments:
+                imageList = []
+                for houseAttachment in houseAttachments:
+                    urls = houseAttachment.get('urls')
+                    if urls:
+                        
+                        for url in urls:
+                            imageList.append({
+                                'imageLink': url
+                            })
+                if imageList:
+                    ods_mugua_contact['imageList'] = imageList
+
             
             # 增加 sourceId 以及 id
             if ods_mugua_contact.get('tableName') and ods_mugua_contact.get('houseId') and ods_mugua_contact.get('contact') and ods_mugua_contact.get('contactType') and ods_mugua_contact.get('numberType'):

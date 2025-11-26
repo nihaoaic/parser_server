@@ -148,6 +148,20 @@ class Yuxiaor2(BaseParser):
                     ods_yuxiaor_house['id'] = hashlib.md5((str(ods_yuxiaor_house['sourceId'])).encode()).hexdigest()
                     yield ods_yuxiaor_house
 
+
+                # 提取照片
+                imageList = []
+                images = data.get('houseImages')
+                if images:
+                    for image in images:
+                        url = image.get('url')
+                        if url:
+                            imageList.append({
+                                'imageLink':url
+                            })
+                    if imageList:
+                        ods_yuxiaor_house['imageList'] = imageList
+
                 # 完成对 联系表的 id
                 if ods_yuxiaor_contact.get('tableName') and ods_yuxiaor_contact.get('houseId') and ods_yuxiaor_contact.get('contact') and ods_yuxiaor_contact.get('contactType') and ods_yuxiaor_contact.get('numberType'):
                     ods_yuxiaor_contact['sourceId'] = hashlib.md5((str(ods_yuxiaor_contact['houseId']) + ods_yuxiaor_contact['contact'] + ods_yuxiaor_contact['contactType'] + ods_yuxiaor_contact['numberType']).encode()).hexdigest()

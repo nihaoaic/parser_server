@@ -175,10 +175,20 @@ class Qingzu2(BaseParser):
                         'value': rentmoney
                     }
 
+                # 提取 照片
+                imageList = []
+                images = data.get('imgList')
+                if images:
+                    for image in images:
+                        imageList.append({
+                            'imageLink':image
+                        })
+                    if imageList:
+                        ods_qingzu_house['imageList'] = imageList
+
                 # 构建id
                 if ods_qingzu_house.get('sourceId'):
                     ods_qingzu_house['id'] = ods_qingzu_house['id'] = hashlib.md5((str(ods_qingzu_house.get('sourceId'))).encode()).hexdigest()
-                    print(ods_qingzu_house)
                     yield ods_qingzu_house
 
     def give_term(self, origin_str):
