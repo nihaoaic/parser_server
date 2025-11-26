@@ -105,6 +105,19 @@ class Nuan1(BaseParser):
                         if title:
                             ods_nuan_house['title'] = title
 
+                        # 提取 原始照片
+                        images = house.get('images')
+                        if images:
+                            imageList = []
+                            for image in images:
+                                image_url = image.get('location')
+                                if image_url:
+                                    imageList.append({
+                                        'imageLink': image_url
+                                    })
+                            if imageList:
+                                ods_nuan_house['imageList'] = imageList
+
                 if ods_nuan_house.get('id'):
                     ods_nuan_house['isFromDetail'] = True
                     yield ods_nuan_house
