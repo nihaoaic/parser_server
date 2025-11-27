@@ -130,6 +130,21 @@ class Mugua(BaseParser):
                     facilities = [_.strip() for _ in facilities]
                     ods_mugua_house['facilities'] = facilities
 
+             # 提取 照片
+            houseAttachments = data.get('houseAttachments')
+            if houseAttachments:
+                imageList = []
+                for houseAttachment in houseAttachments:
+                    urls = houseAttachment.get('urls')
+                    if urls:
+                        
+                        for url in urls:
+                            imageList.append({
+                                'imageLink': url
+                            })
+                if imageList:
+                    ods_mugua_house['imageList'] = imageList
+
             # 封装 sourceId
             ods_mugua_house['sourceId'] = source_id
             ods_mugua_contact['houseId'] = source_id
@@ -149,20 +164,7 @@ class Mugua(BaseParser):
                 ods_mugua_contact['personName'] = person.strip()
 
 
-            # 提取 照片
-            houseAttachments = data.get('houseAttachments')
-            if houseAttachments:
-                imageList = []
-                for houseAttachment in houseAttachments:
-                    urls = houseAttachment.get('urls')
-                    if urls:
-                        
-                        for url in urls:
-                            imageList.append({
-                                'imageLink': url
-                            })
-                if imageList:
-                    ods_mugua_contact['imageList'] = imageList
+           
 
             
             # 增加 sourceId 以及 id
