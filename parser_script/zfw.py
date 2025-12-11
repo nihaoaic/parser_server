@@ -77,6 +77,8 @@ class ZfwParser(BaseParser):
                                 imageList.append({
                                     'imageLink': image_url,
                                 })
+                    if imageList:
+                        ods_zfw_house['imageList'] = imageList
 
                 # 提取 sourceId
                 source_id = data_item.get('threadId')
