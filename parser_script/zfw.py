@@ -65,6 +65,19 @@ class ZfwParser(BaseParser):
                     ods_zfw_house['map']['lat'] = lat
                     ods_zfw_house['map']['lng'] = lng
 
+
+                # 提取 imageList
+                attachments = data_item.get('attachments')
+                if attachments:
+                    imageList = []
+                    for attach in attachments:
+                        if attach.get('fileType') == 'jpg':
+                            image_url = attach.get('filePath')
+                            if image_url:
+                                imageList.append({
+                                    'imageLink': image_url,
+                                })
+
                 # 提取 sourceId
                 source_id = data_item.get('threadId')
                 if source_id:
