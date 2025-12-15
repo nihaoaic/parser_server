@@ -79,6 +79,12 @@ class ZfwParser(BaseParser):
                                 })
                     if imageList:
                         ods_zfw_house['imageList'] = imageList
+                    else:
+                        # 添加 isDownload 
+                        ods_zfw_house['isDownload'] = True
+                else:
+                    # 添加 isDownload 
+                    ods_zfw_house['isDownload'] = True
 
                 # 提取 sourceId
                 source_id = data_item.get('threadId')

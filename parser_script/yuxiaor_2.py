@@ -161,6 +161,9 @@ class Yuxiaor2(BaseParser):
                             })
                     if imageList:
                         ods_yuxiaor_house['imageList'] = imageList
+                else:
+                    # 添加 isDownload 
+                    ods_yuxiaor_house['isDownload'] = True
 
                 # 完成对 联系表的 id
                 if ods_yuxiaor_contact.get('tableName') and ods_yuxiaor_contact.get('houseId') and ods_yuxiaor_contact.get('contact') and ods_yuxiaor_contact.get('contactType') and ods_yuxiaor_contact.get('numberType'):

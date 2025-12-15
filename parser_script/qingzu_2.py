@@ -185,6 +185,8 @@ class Qingzu2(BaseParser):
                         })
                     if imageList:
                         ods_qingzu_house['imageList'] = imageList
+                else:
+                    ods_qingzu_house['isDownload'] = True
 
                 # 构建id
                 if ods_qingzu_house.get('sourceId'):

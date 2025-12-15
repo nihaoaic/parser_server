@@ -144,7 +144,9 @@ class Mugua(BaseParser):
                             })
                 if imageList:
                     ods_mugua_house['imageList'] = imageList
-
+            else:
+                # 添加 isDownload 
+                ods_mugua_house['isDownload'] = True
             # 封装 sourceId
             ods_mugua_house['sourceId'] = source_id
             ods_mugua_contact['houseId'] = source_id
